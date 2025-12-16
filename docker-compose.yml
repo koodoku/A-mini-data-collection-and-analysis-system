@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  #Бд PostgreSQL
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    restart: always
+    environment:
+      # Настройки, которые используются Генератором и Redash
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ecommerce_db
+    volumes:
+      # Сохранение данных на хосте (для демонстрации)
+      - postgres_data:/var/lib/postgresql/data
+      # Авт запус при старте
+      - ./db/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432" # Порт для локального доступа и Jupyter
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  #Генератор данных
+  generator:
+    build:
+      context: ./generator
+      dockerfile: Dockerfile
+    container_name: data_generator
+
+    depends_on:
+      postgres:
+        condition: service_healthy 
+    environment:
+      # Передача настроек БД в скрипт data_generator.py
+      DB_HOST: postgres
+      POSTGRES_DB: ecommerce_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+
+  #Redash для визуализации
+  redash:
+    image: redash/redash:10.0.0.b50363
+    container_name: redash
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "5000:5000" 
+    environment:
+      REDASH_DATABASE_URL: postgres://user:password@postgres:5432/ecommerce_db
+      REDASH_SECRET_KEY: super-secret-key-change-me
+
+
+volumes:
+  postgres_data:
+    driver: local
