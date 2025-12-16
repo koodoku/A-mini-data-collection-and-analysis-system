@@ -14,18 +14,17 @@ services:
       POSTGRES_DB: ecommerce_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_MULTIPLE_DATABASES: ecommerce_db,redash_db 
+      # Удалена неработающая переменная POSTGRES_MULTIPLE_DATABASES
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_db"] 
+      test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_db"]
       interval: 5s
       timeout: 5s
       retries: 5
-
 
   redis:
     image: redis:6-alpine
@@ -40,9 +39,9 @@ services:
     restart: always
     depends_on:
       postgres:
-        condition: service_healthy 
+        condition: service_healthy
     environment:
-      DB_HOST: postgres 
+      DB_HOST: postgres
       POSTGRES_DB: ecommerce_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -68,7 +67,7 @@ services:
       redis:
         condition: service_started
     ports:
-      - "5000:5000" 
+      - "5000:5000"
     environment:
       REDASH_DATABASE_URL: postgresql://user:password@postgres/redash_db
       REDASH_REDIS_URL: redis://redis:6379/0
@@ -83,7 +82,7 @@ services:
     command: worker
     depends_on:
       postgres:
-        condition: service_healthy 
+        condition: service_healthy
       redis:
         condition: service_started
     environment:
@@ -92,14 +91,14 @@ services:
       REDASH_SECRET_KEY: super-secret-key-change-me
 
   jupyter-notebook:
-    image: jupyter/scipy-notebook:latest 
+    image: jupyter/scipy-notebook:latest
     container_name: jupyter-notebook
-    restart: "no" 
+    restart: "no"
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "8888:8888" 
+      - "8888:8888"
     volumes:
       - ./notebook:/home/jovyan/work
       - jupyter_data:/home/jovyan

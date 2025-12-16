@@ -35,5 +35,5 @@
 
 | Сервис | Адрес | Детали доступа |
 | :--- | :--- | :--- |
-| **Redash (Дашборды)** | **`http://localhost:5000`** | 
+| **Redash (Дашборды)** | **`http://localhost:5000`** | **`http://localhost:5000/public/dashboards/sdg9YULRJIK2KkMh1HtJlcn6gybViqCrQXYjGtC9?org_slug=default`**|
 | **PostgreSQL (Прямой доступ)** | Порт `5432` | Host: `localhost`, User/Pass: `user`/`password`, DB: `ecommerce_db` |
