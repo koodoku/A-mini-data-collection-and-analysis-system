@@ -1,60 +1,125 @@
 version: '3.8'
 
+# =========================================================
+# БЛОКИ ВЕРХНЕГО УРОВНЯ
+# Обратите внимание, что 'volumes' и 'services' на одном уровне
+# =========================================================
+
+volumes:
+  postgres_data:
+  redash_data:
+  jupyter_data:
+
 services:
-  #Бд PostgreSQL
+  # 1. СЕРВИС: PostgreSQL Database
   postgres:
-    image: postgres:14
+    image: postgres:14-alpine
     container_name: postgres
     restart: always
     environment:
-      # Настройки, которые используются Генератором и Redash
+      POSTGRES_DB: ecommerce_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: ecommerce_db
+      # Добавим переменную, чтобы PostgreSQL автоматически создал redash_db
+      POSTGRES_MULTIPLE_DATABASES: ecommerce_db,redash_db 
     volumes:
-      # Сохранение данных на хосте (для демонстрации)
       - postgres_data:/var/lib/postgresql/data
-      # Авт запус при старте
       - ./db/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     ports:
-      - "5432:5432" # Порт для локального доступа и Jupyter
+      - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
+      test: ["CMD-SHELL", "pg_isready -U user -d ecommerce_db"] 
       interval: 5s
       timeout: 5s
       retries: 5
 
-  #Генератор данных
+  # 2. СЕРВИС: Redis (Кэш для Redash)
+  redis:
+    image: redis:6-alpine
+    container_name: redis
+    restart: always
+
+  # 3. СЕРВИС: Data Generator
   generator:
     build:
       context: ./generator
       dockerfile: Dockerfile
     container_name: data_generator
-
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy 
     environment:
-      # Передача настроек БД в скрипт data_generator.py
-      DB_HOST: postgres
+      DB_HOST: postgres 
       POSTGRES_DB: ecommerce_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
 
-  #Redash для визуализации
-  redash:
+  # 4. СЕРВИС: Инициализация БД Redash (ОДНОКРАТНЫЙ ЗАПУСК)
+  redash_setup:
     image: redash/redash:10.0.0.b50363
-    container_name: redash
+    container_name: redash_setup
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      REDASH_DATABASE_URL: postgresql://user:password@postgres/redash_db
+      REDASH_SECRET_KEY: super-secret-key-change-me
+    command: create_db
+
+  # 5. СЕРВИС: Redash Server (Веб-интерфейс)
+  redash_server:
+    image: redash/redash:10.0.0.b50363
+    container_name: redash_server
     restart: always
     depends_on:
-      - postgres
+      redash_setup:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
     ports:
       - "5000:5000" 
     environment:
-      REDASH_DATABASE_URL: postgres://user:password@postgres:5432/ecommerce_db
+      REDASH_DATABASE_URL: postgresql://user:password@postgres/redash_db
+      REDASH_REDIS_URL: redis://redis:6379/0
+      REDASH_SECRET_KEY: super-secret-key-change-me
+      REDASH_HOST: http://localhost:5000
+    command: server
+
+  # 6. СЕРВИС: Redash Worker (Обработка запросов)
+  redash_worker:
+    image: redash/redash:10.0.0.b50363
+    container_name: redash_worker
+    restart: always
+    command: worker
+    depends_on:
+      postgres:
+        condition: service_healthy 
+      redis:
+        condition: service_started
+    environment:
+      REDASH_DATABASE_URL: postgresql://user:password@postgres/redash_db
+      REDASH_REDIS_URL: redis://redis:6379/0
       REDASH_SECRET_KEY: super-secret-key-change-me
 
-
-volumes:
-  postgres_data:
-    driver: local
+  # 7. СЕРВИС: JupyterLab для анализа
+  jupyter-notebook:
+    image: jupyter/scipy-notebook:latest 
+    container_name: jupyter-notebook
+    restart: "no" 
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8888:8888" 
+    volumes:
+      - ./notebook:/home/jovyan/work
+      - jupyter_data:/home/jovyan
+    environment:
+      JUPYTER_TOKEN: my_secure_token
+      DB_HOST: postgres
+      DB_NAME: ecommerce_db
+      DB_USER: user
+      DB_PASS: password
+    command: start-notebook.sh --NotebookApp.token='my_secure_token' --ip='0.0.0.0'
+    user: root
