@@ -1,17 +1,11 @@
 version: '3.8'
 
-# =========================================================
-# БЛОКИ ВЕРХНЕГО УРОВНЯ
-# Обратите внимание, что 'volumes' и 'services' на одном уровне
-# =========================================================
-
 volumes:
   postgres_data:
   redash_data:
   jupyter_data:
 
 services:
-  # 1. СЕРВИС: PostgreSQL Database
   postgres:
     image: postgres:14-alpine
     container_name: postgres
@@ -20,7 +14,6 @@ services:
       POSTGRES_DB: ecommerce_db
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
-      # Добавим переменную, чтобы PostgreSQL автоматически создал redash_db
       POSTGRES_MULTIPLE_DATABASES: ecommerce_db,redash_db 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -33,13 +26,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. СЕРВИС: Redis (Кэш для Redash)
+
   redis:
     image: redis:6-alpine
     container_name: redis
     restart: always
 
-  # 3. СЕРВИС: Data Generator
   generator:
     build:
       context: ./generator
@@ -55,7 +47,6 @@ services:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
 
-  # 4. СЕРВИС: Инициализация БД Redash (ОДНОКРАТНЫЙ ЗАПУСК)
   redash_setup:
     image: redash/redash:10.0.0.b50363
     container_name: redash_setup
@@ -67,7 +58,6 @@ services:
       REDASH_SECRET_KEY: super-secret-key-change-me
     command: create_db
 
-  # 5. СЕРВИС: Redash Server (Веб-интерфейс)
   redash_server:
     image: redash/redash:10.0.0.b50363
     container_name: redash_server
@@ -86,7 +76,6 @@ services:
       REDASH_HOST: http://localhost:5000
     command: server
 
-  # 6. СЕРВИС: Redash Worker (Обработка запросов)
   redash_worker:
     image: redash/redash:10.0.0.b50363
     container_name: redash_worker
@@ -102,7 +91,6 @@ services:
       REDASH_REDIS_URL: redis://redis:6379/0
       REDASH_SECRET_KEY: super-secret-key-change-me
 
-  # 7. СЕРВИС: JupyterLab для анализа
   jupyter-notebook:
     image: jupyter/scipy-notebook:latest 
     container_name: jupyter-notebook
