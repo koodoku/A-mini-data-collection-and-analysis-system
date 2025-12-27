@@ -4,16 +4,14 @@ import random
 import numpy as np
 import os
 
-# Конфигурация бд (берется из переменных окружения Docker Compose)
 DB_HOST = os.environ.get('DB_HOST', 'postgres')
 DB_NAME = os.environ.get('POSTGRES_DB', 'ecommerce_db')
 DB_USER = os.environ.get('POSTGRES_USER', 'user')
 DB_PASS = os.environ.get('POSTGRES_PASSWORD', 'password')
 
-# Данные для генерации
 CATEGORIES = ['Electronics', 'Books', 'Apparel', 'Home & Garden', 'Beauty']
 CITIES = ['Moscow', 'St. Petersburg', 'Kazan', 'Novosibirsk', 'Vladivostok']
-# Примерные цены и товары
+
 PRODUCT_MAP = {
     'Electronics': [('Laptop', 800.00), ('Smartphone', 500.00), ('Headphones', 50.00)],
     'Books': [('Novel', 15.00), ('Textbook', 50.00), ('Cookbook', 25.00)],
@@ -46,24 +44,17 @@ def connect_to_db():
     return None
 
 def generate_order_data():
-    #Генерация одной записи о заказе
-    # Выбираем категорию и город
     category = random.choice(CATEGORIES)
     city = random.choice(CITIES)
     
-    # Выбираем товар и базовую цену из карты товаров
     product_name, base_price = random.choice(PRODUCT_MAP[category])
-    
-    # Добавляем небольшой случайный шум к цене
     price = round(base_price + np.random.normal(0, 0.05 * base_price), 2)
-    
-    # Количество
     quantity = int(np.random.poisson(1.5)) + 1 
     
     return product_name, category, price, quantity, city
 
 def insert_data(conn, cursor, data):
-    product_name, category, price, quantity, city = data #Вставка одной записи в таблицу
+    product_name, category, price, quantity, city = data 
     
     insert_query = """
     INSERT INTO orders (product_name, category, price, quantity, city)
@@ -90,7 +81,6 @@ def main():
         order_data = generate_order_data()
         insert_data(conn, cursor, order_data)
         
-        # Периодичность-раз в секунду 
         time.sleep(1) 
 
 if __name__ == "__main__":

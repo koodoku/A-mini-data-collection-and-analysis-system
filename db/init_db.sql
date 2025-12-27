@@ -1,8 +1,3 @@
--- Добавьте эту секцию в самое начало файла
--- Создаем базу данных для Redash, так как postgres создает только ecommerce_db по умолчанию
-CREATE DATABASE redash_db OWNER "user";
-
--- Далее ваш старый код для ecommerce_db
 DROP TABLE IF EXISTS orders;
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
